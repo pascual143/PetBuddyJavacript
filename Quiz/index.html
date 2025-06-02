@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicación de Quiz Simple</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos personalizados para el botón de mensaje */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-purple-300 to-pink-400 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Quiz de Conocimientos</h1>
+
+        <div class="bg-gray-100 p-6 rounded-lg mb-6 shadow-inner text-left">
+            <p class="text-gray-700 text-lg mb-2">Pregunta <span id="question-number" class="font-bold"></span> de <span id="total-questions" class="font-bold"></span></p>
+            <h2 id="question-text" class="text-2xl font-semibold text-gray-800 mb-4 min-h-[3rem]"></h2>
+            <div id="answer-options" class="grid grid-cols-1 gap-3">
+                <!-- Answer buttons will be inserted here by JavaScript -->
+            </div>
+            <p id="feedback-message" class="text-sm font-medium mt-4 min-h-[1.5rem]"></p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+            <button id="next-question-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Siguiente Pregunta
+            </button>
+            <button id="restart-quiz-btn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 hidden">
+                Reiniciar Quiz
+            </button>
+        </div>
+
+        <div id="score-display" class="mt-6 bg-gray-200 p-4 rounded-lg shadow-md hidden">
+            <p class="text-gray-700 text-xl font-bold">Tu puntuación final: <span id="final-score" class="text-indigo-700"></span></p>
+        </div>
+    </div>
+
+    <!-- Message Box for alerts -->
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Función para mostrar un mensaje personalizado (reemplaza alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        // Event listener para cerrar el mensaje
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Clase QuizApp: Encapsula toda la lógica del quiz
+        class QuizApp {
+            // Constructor: Inicializa el estado del quiz y las referencias a los elementos del DOM
+            // 'this' aquí se refiere a la nueva instancia de QuizApp que se está creando
+            constructor() {
+                // Definición de las preguntas del quiz (array de objetos)
+                this.questions = [
+                    {
+                        question: "¿Cuál es la capital de España?",
+                        options: ["Barcelona", "Madrid", "Valencia", "Sevilla"],
+                        correctAnswer: "Madrid"
+                    },
+                    {
+                        question: "¿Qué planeta es conocido como el Planeta Rojo?",
+                        options: ["Júpiter", "Marte", "Venus", "Saturno"],
+                        correctAnswer: "Marte"
+                    },
+                    {
+                        question: "¿Cuál es el océano más grande del mundo?",
+                        options: ["Atlántico", "Índico", "Ártico", "Pacífico"],
+                        correctAnswer: "Pacífico"
+                    },
+                    {
+                        question: "¿Quién pintó la Mona Lisa?",
+                        options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
+                        correctAnswer: "Leonardo da Vinci"
+                    },
+                    {
+                        question: "¿Cuál es el animal terrestre más rápido?",
+                        options: ["León", "Guepardo", "Tigre", "Antílope"],
+                        correctAnswer: "Guepardo"
+                    }
+                ];
+
+                this.currentQuestionIndex = 0; // Índice de la pregunta actual
+                this.score = 0;                // Puntuación del jugador
+                this.selectedAnswer = null;    // Para almacenar la respuesta seleccionada por el usuario
+                this.quizEnded = false;        // Estado del quiz
+
+                // Obtener referencias a los elementos del DOM
+                this.questionNumberDisplay = document.getElementById('question-number');
+                this.totalQuestionsDisplay = document.getElementById('total-questions');
+                this.questionTextDisplay = document.getElementById('question-text');
+                this.answerOptionsContainer = document.getElementById('answer-options');
+                this.feedbackMessageDisplay = document.getElementById('feedback-message');
+                this.nextQuestionBtn = document.getElementById('next-question-btn');
+                this.restartQuizBtn = document.getElementById('restart-quiz-btn');
+                this.scoreDisplayContainer = document.getElementById('score-display');
+                this.finalScoreDisplay = document.getElementById('final-score');
+
+                // Adjuntar los escuchadores de eventos
+                this.addEventListeners();
+                // Iniciar el quiz al cargar la página
+                this.startQuiz();
+            }
+
+            // Método para adjuntar los escuchadores de eventos
+            // 'this' se refiere a la instancia de QuizApp
+            addEventListeners() {
+                // Usamos una función flecha para el callback para preservar el contexto de 'this'
+                this.nextQuestionBtn.addEventListener('click', () => this.handleNextOrSubmit());
+                this.restartQuizBtn.addEventListener('click', () => this.startQuiz());
+            }
+
+            // Método para iniciar o reiniciar el quiz
+            // 'this' se refiere a la instancia de QuizApp
+            startQuiz() {
+                this.currentQuestionIndex = 0;
+                this.score = 0;
+                this.selectedAnswer = null;
+                this.quizEnded = false;
+
+                // Ocultar resultados y mostrar botones de juego
+                this.scoreDisplayContainer.classList.add('hidden');
+                this.nextQuestionBtn.classList.remove('hidden');
+                this.restartQuizBtn.classList.add('hidden');
+                this.nextQuestionBtn.textContent = "Siguiente Pregunta"; // Reset text
+
+                this.updateUI(); // Actualizar la UI inicial
+                this.displayQuestion(); // Mostrar la primera pregunta
+                this.feedbackMessageDisplay.textContent = ''; // Limpiar mensaje de feedback
+            }
+
+            // Método para mostrar la pregunta actual y sus opciones
+            // 'this' se refiere a la instancia de QuizApp
+            displayQuestion() {
+                const currentQuestion = this.questions[this.currentQuestionIndex];
+
+                // Actualizar el número de pregunta y el texto de la pregunta
+                this.questionNumberDisplay.textContent = this.currentQuestionIndex + 1;
+                this.totalQuestionsDisplay.textContent = this.questions.length;
+                this.questionTextDisplay.textContent = currentQuestion.question;
+
+                // Limpiar opciones anteriores
+                this.answerOptionsContainer.innerHTML = '';
+                this.selectedAnswer = null; // Resetear la respuesta seleccionada
+
+                // Crear y añadir los botones de opción de respuesta
+                currentQuestion.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add(
+                        'bg-blue-200', 'hover:bg-blue-300', 'text-blue-800', 'font-bold',
+                        'py-2', 'px-4', 'rounded-lg', 'shadow-sm', 'transition-colors',
+                        'duration-200', 'text-lg', 'text-left', 'w-full'
+                    );
+                    // Usamos una función flecha para el callback del botón para preservar 'this'
+                    button.addEventListener('click', () => this.selectAnswer(option, button));
+                    this.answerOptionsContainer.appendChild(button);
+                });
+
+                // Habilitar el botón "Siguiente Pregunta" si no hay una respuesta seleccionada
+                // o si ya se ha seleccionado una y el quiz no ha terminado
+                this.nextQuestionBtn.disabled = false;
+            }
+
+            // Método para manejar la selección de una respuesta
+            // 'this' se refiere a la instancia de QuizApp
+            selectAnswer(option, clickedButton) {
+                if (this.quizEnded) return; // No permitir seleccionar si el quiz terminó
+
+                // Desmarcar cualquier respuesta previamente seleccionada
+                Array.from(this.answerOptionsContainer.children).forEach(button => {
+                    button.classList.remove('bg-blue-500', 'text-white', 'border-2', 'border-blue-700');
+                    button.classList.add('bg-blue-200', 'text-blue-800');
+                });
+
+                // Marcar la respuesta seleccionada
+                clickedButton.classList.remove('bg-blue-200', 'text-blue-800');
+                clickedButton.classList.add('bg-blue-500', 'text-white', 'border-2', 'border-blue-700');
+
+                this.selectedAnswer = option; // Almacenar la respuesta seleccionada
+                this.feedbackMessageDisplay.textContent = ''; // Limpiar feedback anterior
+            }
+
+            // Método para verificar la respuesta seleccionada
+            // 'this' se refiere a la instancia de QuizApp
+            checkAnswer() {
+                if (this.selectedAnswer === null) {
+                    showMessage("Por favor, selecciona una respuesta antes de continuar.");
+                    return false;
+                }
+
+                const currentQuestion = this.questions[this.currentQuestionIndex];
+                if (this.selectedAnswer === currentQuestion.correctAnswer) {
+                    this.score++;
+                    this.feedbackMessageDisplay.textContent = '¡Correcto!';
+                    this.feedbackMessageDisplay.classList.remove('text-red-600');
+                    this.feedbackMessageDisplay.classList.add('text-green-600');
+                } else {
+                    this.feedbackMessageDisplay.textContent = `Incorrecto. La respuesta correcta era: ${currentQuestion.correctAnswer}`;
+                    this.feedbackMessageDisplay.classList.remove('text-green-600');
+                    this.feedbackMessageDisplay.classList.add('text-red-600');
+                }
+                return true;
+            }
+
+            // Método para avanzar a la siguiente pregunta o mostrar los resultados
+            // 'this' se refiere a la instancia de QuizApp
+            handleNextOrSubmit() {
+                if (this.quizEnded) {
+                    // Si el quiz ha terminado y se presiona el botón, reiniciar
+                    this.startQuiz();
+                    return;
+                }
+
+                // Primero, verifica la respuesta si el usuario ha seleccionado una
+                if (!this.checkAnswer()) {
+                    return; // Si no hay respuesta seleccionada, no avanzar
+                }
+
+                // Deshabilitar botones de respuesta para evitar cambios después de la verificación
+                Array.from(this.answerOptionsContainer.children).forEach(button => {
+                    button.disabled = true;
+                });
+
+                // Pequeño retraso para que el usuario vea el feedback antes de la siguiente pregunta
+                setTimeout(() => {
+                    this.currentQuestionIndex++; // Avanzar a la siguiente pregunta
+
+                    if (this.currentQuestionIndex < this.questions.length) {
+                        this.displayQuestion(); // Mostrar la siguiente pregunta
+                        this.feedbackMessageDisplay.textContent = ''; // Limpiar feedback
+                        this.feedbackMessageDisplay.classList.remove('text-green-600', 'text-red-600');
+                    } else {
+                        this.endQuiz(); // Si no hay más preguntas, terminar el quiz
+                    }
+                    this.updateUI(); // Actualizar la UI
+                }, 1000); // Esperar 1 segundo
+            }
+
+            // Método para finalizar el quiz y mostrar los resultados
+            // 'this' se refiere a la instancia de QuizApp
+            endQuiz() {
+                this.quizEnded = true;
+                this.questionTextDisplay.textContent = "¡Quiz Terminado!";
+                this.answerOptionsContainer.innerHTML = ''; // Limpiar opciones
+                this.feedbackMessageDisplay.textContent = ''; // Limpiar feedback
+                this.nextQuestionBtn.classList.add('hidden'); // Ocultar botón de siguiente
+                this.restartQuizBtn.classList.remove('hidden'); // Mostrar botón de reiniciar
+
+                this.scoreDisplayContainer.classList.remove('hidden'); // Mostrar contenedor de puntuación
+                this.finalScoreDisplay.textContent = `${this.score} / ${this.questions.length}`;
+            }
+
+            // Método para actualizar la interfaz de usuario general (número de pregunta, etc.)
+            // 'this' se refiere a la instancia de QuizApp
+            updateUI() {
+                this.questionNumberDisplay.textContent = this.currentQuestionIndex + 1;
+                this.totalQuestionsDisplay.textContent = this.questions.length;
+            }
+        }
+
+        // --- Inicialización de la aplicación ---
+        // Crear una instancia de nuestra aplicación de quiz cuando la ventana se cargue
+        window.onload = () => {
+            const myQuizApp = new QuizApp();
+            // El constructor de QuizApp ya llama a startQuiz() para inicializar el juego
+        };
+    </script>
+</body>
+</html>
