@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mezclador de Colores RGB</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Font Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the message box */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-indigo-300 to-purple-400 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Mezclador de Colores RGB</h1>
+
+        <!-- Color display area -->
+        <div id="color-display" class="w-full h-40 rounded-lg mb-6 shadow-inner border-2 border-gray-300" style="background-color: rgb(0,0,0);"></div>
+
+        <!-- RGB sliders -->
+        <div class="space-y-6 mb-6">
+            <!-- Red slider -->
+            <div>
+                <label for="red-slider" class="block text-red-600 text-lg font-semibold mb-2">Rojo: <span id="red-value">0</span></label>
+                <input type="range" id="red-slider" min="0" max="255" value="0" class="w-full h-3 bg-red-200 rounded-lg appearance-none cursor-pointer accent-red-500">
+            </div>
+            <!-- Green slider -->
+            <div>
+                <label for="green-slider" class="block text-green-600 text-lg font-semibold mb-2">Verde: <span id="green-value">0</span></label>
+                <input type="range" id="green-slider" min="0" max="255" value="0" class="w-full h-3 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-500">
+            </div>
+            <!-- Blue slider -->
+            <div>
+                <label for="blue-slider" class="block text-blue-600 text-lg font-semibold mb-2">Azul: <span id="blue-value">0</span></label>
+                <input type="range" id="blue-slider" min="0" max="255" value="0" class="w-full h-3 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+        </div>
+
+        <!-- Hex code display -->
+        <div class="bg-gray-100 p-4 rounded-lg shadow-inner">
+            <p class="text-gray-600 text-lg mb-2">Código Hex:</p>
+            <p id="hex-code" class="text-3xl font-bold text-gray-800">#000000</p>
+        </div>
+    </div>
+
+    <!-- Message Box for alerts -->
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Function to show a custom message (replaces alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        // Event listener to close the message box
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Class ColorMixer: Encapsulates the RGB color mixing logic
+        class ColorMixer {
+            // Constructor: Initializes the color values and DOM element references
+            // 'this' here refers to the new ColorMixer instance being created
+            constructor() {
+                this.red = 0;
+                this.green = 0;
+                this.blue = 0;
+
+                // Get references to DOM elements
+                this.redSlider = document.getElementById('red-slider');
+                this.greenSlider = document.getElementById('green-slider');
+                this.blueSlider = document.getElementById('blue-slider');
+
+                this.redValueDisplay = document.getElementById('red-value');
+                this.greenValueDisplay = document.getElementById('green-value');
+                this.blueValueDisplay = document.getElementById('blue-value');
+
+                this.colorDisplay = document.getElementById('color-display');
+                this.hexCodeDisplay = document.getElementById('hex-code');
+
+                // Attach event listeners
+                this.addEventListeners();
+                // Initial UI update
+                this.updateColor();
+            }
+
+            // Method to attach event listeners to sliders
+            // 'this' refers to the ColorMixer instance
+            addEventListeners() {
+                // Use arrow functions for callbacks to preserve 'this' context
+                this.redSlider.addEventListener('input', () => this.handleSliderChange());
+                this.greenSlider.addEventListener('input', () => this.handleSliderChange());
+                this.blueSlider.addEventListener('input', () => this.handleSliderChange());
+            }
+
+            // Method to handle changes from any slider
+            // 'this' refers to the ColorMixer instance
+            handleSliderChange() {
+                this.red = parseInt(this.redSlider.value);
+                this.green = parseInt(this.greenSlider.value);
+                this.blue = parseInt(this.blueSlider.value);
+                this.updateColor(); // Call the method to update the color display
+            }
+
+            // Method to convert an RGB value to a two-digit hexadecimal string
+            // This is a helper function, 'this' is not directly used here for instance properties
+            rgbToHex(c) {
+                const hex = c.toString(16);
+                return hex.length === 1 ? "0" + hex : hex;
+            }
+
+            // Method to update the color display and hex code
+            // 'this' refers to the ColorMixer instance
+            updateColor() {
+                // Update RGB value displays
+                this.redValueDisplay.textContent = this.red;
+                this.greenValueDisplay.textContent = this.green;
+                this.blueValueDisplay.textContent = this.blue;
+
+                // Update the background color of the display div
+                this.colorDisplay.style.backgroundColor = `rgb(${this.red}, ${this.green}, ${this.blue})`;
+
+                // Calculate and display the hex code
+                const hexR = this.rgbToHex(this.red);
+                const hexG = this.rgbToHex(this.green);
+                const hexB = this.rgbToHex(this.blue);
+                this.hexCodeDisplay.textContent = `#${hexR}${hexG}${hexB}`.toUpperCase();
+            }
+        }
+
+        // --- Application Initialization ---
+        // Create an instance of our ColorMixer when the window loads
+        window.onload = () => {
+            const myColorMixer = new ColorMixer();
+            // The constructor already calls updateColor(), so no need for an extra call here
+        };
+    </script>
+</body>
+</html>
