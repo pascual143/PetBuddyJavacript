@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Adivinar el Número</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos personalizados para el botón de mensaje */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-green-200 to-blue-300 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Adivina el Número</h1>
+
+        <div class="bg-gray-100 p-6 rounded-lg mb-6 shadow-inner">
+            <p class="text-gray-700 text-xl mb-4">Estoy pensando en un número entre 1 y 100.</p>
+            <p class="text-gray-600 text-lg mb-4">Intentos restantes: <span id="attempts-left" class="font-bold text-blue-700"></span></p>
+            <p id="game-message" class="text-xl font-semibold text-gray-800 min-h-[2rem]">¡Comienza a adivinar!</p>
+        </div>
+
+        <div class="mb-6">
+            <input type="number" id="guess-input" placeholder="Introduce tu número" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center text-lg" min="1" max="100">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button id="submit-guess-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Adivinar
+            </button>
+            <button id="reset-game-btn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Reiniciar Juego
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Box for alerts -->
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Función para mostrar un mensaje personalizado (reemplaza alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        // Event listener para cerrar el mensaje
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Clase NumberGuessingGame: Encapsula la lógica del juego de adivinar el número
+        class NumberGuessingGame {
+            // Constructor: Inicializa el estado del juego y las referencias a los elementos del DOM
+            // 'this' aquí se refiere a la nueva instancia de NumberGuessingGame que se está creando
+            constructor() {
+                this.secretNumber = 0; // El número que el jugador debe adivinar
+                this.attempts = 7;     // Número de intentos permitidos
+                this.gameOver = false; // Estado del juego (true si el juego ha terminado)
+
+                // Obtener referencias a los elementos del DOM
+                this.attemptsLeftDisplay = document.getElementById('attempts-left');
+                this.gameMessageDisplay = document.getElementById('game-message');
+                this.guessInput = document.getElementById('guess-input');
+                this.submitGuessBtn = document.getElementById('submit-guess-btn');
+                this.resetGameBtn = document.getElementById('reset-game-btn');
+
+                // Adjuntar los escuchadores de eventos
+                this.addEventListeners();
+                // Iniciar un nuevo juego al cargar la página
+                this.resetGame();
+            }
+
+            // Método para generar un número secreto aleatorio
+            // 'this' se refiere a la instancia del juego
+            generateSecretNumber() {
+                // Genera un número entero entre 1 y 100
+                this.secretNumber = Math.floor(Math.random() * 100) + 1;
+                console.log(`(DEBUG) Número secreto: ${this.secretNumber}`); // Para pruebas, se puede quitar
+            }
+
+            // Método para adjuntar los escuchadores de eventos a los botones
+            // 'this' se refiere a la instancia del juego
+            addEventListeners() {
+                // Usamos funciones flecha para los callbacks para preservar el contexto de 'this'
+                this.submitGuessBtn.addEventListener('click', () => this.checkGuess());
+                this.resetGameBtn.addEventListener('click', () => this.resetGame());
+
+                // Permitir adivinar con la tecla Enter en el input
+                this.guessInput.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter' && !this.gameOver) {
+                        this.checkGuess();
+                    }
+                });
+            }
+
+            // Método principal para verificar la suposición del jugador
+            // 'this' se refiere a la instancia del juego
+            checkGuess() {
+                if (this.gameOver) {
+                    showMessage("El juego ha terminado. Por favor, reinicia para jugar de nuevo.");
+                    return;
+                }
+
+                const userGuess = parseInt(this.guessInput.value);
+
+                // Validar la entrada del usuario
+                if (isNaN(userGuess) || userGuess < 1 || userGuess > 100) {
+                    showMessage("Por favor, introduce un número válido entre 1 y 100.");
+                    this.guessInput.value = ''; // Limpiar el input
+                    return;
+                }
+
+                this.attempts--; // Decrementar el número de intentos restantes
+
+                let message = '';
+                if (userGuess === this.secretNumber) {
+                    message = `¡Felicidades! Adivinaste el número ${this.secretNumber} en ${7 - this.attempts} intentos.`;
+                    this.gameOver = true;
+                    this.submitGuessBtn.disabled = true; // Deshabilitar botón de adivinar
+                } else if (userGuess < this.secretNumber) {
+                    message = `Demasiado bajo. Intenta un número mayor.`;
+                } else {
+                    message = `Demasiado alto. Intenta un número menor.`;
+                }
+
+                // Actualizar el mensaje del juego
+                this.gameMessageDisplay.textContent = message;
+
+                // Si se acaban los intentos y no ha adivinado
+                if (this.attempts === 0 && userGuess !== this.secretNumber) {
+                    this.gameOver = true;
+                    this.gameMessageDisplay.textContent = `¡Se acabaron los intentos! El número secreto era ${this.secretNumber}.`;
+                    this.submitGuessBtn.disabled = true; // Deshabilitar botón de adivinar
+                }
+
+                this.updateUI(); // Actualizar la interfaz de usuario
+                this.guessInput.value = ''; // Limpiar el input después de cada intento
+            }
+
+            // Método para actualizar la interfaz de usuario con el estado actual del juego
+            // 'this' se refiere a la instancia del juego
+            updateUI() {
+                this.attemptsLeftDisplay.textContent = this.attempts;
+                // Si el juego ha terminado, el input se deshabilita
+                this.guessInput.disabled = this.gameOver;
+                this.submitGuessBtn.disabled = this.gameOver;
+            }
+
+            // Método para reiniciar el juego a su estado inicial
+            // 'this' se refiere a la instancia del juego
+            resetGame() {
+                this.generateSecretNumber(); // Generar un nuevo número secreto
+                this.attempts = 7;           // Restablecer los intentos
+                this.gameOver = false;       // Restablecer el estado del juego
+                this.guessInput.value = '';  // Limpiar el input
+                this.gameMessageDisplay.textContent = "¡Comienza a adivinar!"; // Mensaje inicial
+                this.submitGuessBtn.disabled = false; // Habilitar botón de adivinar
+                this.updateUI();             // Actualizar la interfaz de usuario
+                showMessage("¡Nuevo juego iniciado! Adivina el número entre 1 y 100.");
+                this.guessInput.focus(); // Poner el foco en el input para empezar a jugar
+            }
+        }
+
+        // --- Inicialización de la aplicación ---
+        // Crear una instancia de nuestro juego cuando la ventana se cargue
+        window.onload = () => {
+            const myGame = new NumberGuessingGame();
+            // El constructor ya llama a resetGame(), que a su vez llama a updateUI()
+        };
+    </script>
+</body>
+</html>
