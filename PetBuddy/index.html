@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Mascota Virtual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos personalizados para el botón de mensaje */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-blue-200 to-purple-300 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Mi Mascota Virtual</h1>
+
+        <div id="pet-display" class="bg-gray-100 p-6 rounded-lg mb-6 shadow-inner">
+            <div class="text-6xl mb-4 animate-bounce-slow" id="pet-emoji">🐾</div> <h2 class="text-3xl font-bold text-gray-700 mb-2" id="pet-name"></h2>
+            <div class="text-left text-gray-600 space-y-2">
+                <p>Hambre: <span id="pet-hunger" class="font-semibold"></span></p>
+                <p>Felicidad: <span id="pet-happiness" class="font-semibold"></span></p>
+                <p>Energía: <span id="pet-energy" class="font-semibold"></span></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button id="feed-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Alimentar
+            </button>
+            <button id="play-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Jugar
+            </button>
+            <button id="sleep-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Dormir
+            </button>
+        </div>
+    </div>
+
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Función para mostrar un mensaje personalizado (reemplaza alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        // Event listener para cerrar el mensaje
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Clase Pet: Define la estructura y comportamiento de nuestra mascota virtual
+        class Pet {
+            // Constructor: Se llama cuando creamos una nueva instancia de Pet
+            // 'this' aquí se refiere a la nueva instancia de Pet que se está creando
+            constructor(name) {
+                this.name = name;
+                this.hunger = 50;    // 0 = lleno, 100 = muy hambriento
+                this.happiness = 70; // 0 = infeliz, 100 = muy feliz
+                this.energy = 80;    // 0 = agotado, 100 = lleno de energía
+                this.emoji = '🐾'; // Emoji de la mascota
+            }
+
+            // Método para alimentar a la mascota
+            // 'this' se refiere a la instancia de Pet que llama a este método
+            feed() {
+                if (this.hunger > 0) {
+                    this.hunger = Math.max(0, this.hunger - 20); // Reduce el hambre
+                    this.happiness = Math.min(100, this.happiness + 10); // Aumenta la felicidad
+                    showMessage(`${this.name} ha comido y se siente un poco mejor.`);
+                } else {
+                    showMessage(`${this.name} no tiene hambre ahora mismo.`);
+                }
+            }
+
+            // Método para jugar con la mascota
+            // 'this' se refiere a la instancia de Pet que llama a este método
+            play() {
+                if (this.energy > 20) {
+                    this.energy = Math.max(0, this.energy - 30); // Reduce la energía
+                    this.happiness = Math.min(100, this.happiness + 20); // Aumenta la felicidad
+                    this.hunger = Math.min(100, this.hunger + 10); // Aumenta un poco el hambre
+                    showMessage(`${this.name} ha jugado y está feliz, pero un poco cansado.`);
+                } else {
+                    showMessage(`${this.name} está demasiado cansado para jugar.`);
+                }
+            }
+
+            // Método para hacer dormir a la mascota
+            // 'this' se refiere a la instancia de Pet que llama a este método
+            sleep() {
+                if (this.energy < 90) {
+                    this.energy = Math.min(100, this.energy + 40); // Aumenta la energía
+                    this.happiness = Math.min(100, this.happiness + 5); // Pequeño aumento de felicidad
+                    showMessage(`${this.name} ha dormido y se siente con más energía.`);
+                } else {
+                    showMessage(`${this.name} no tiene sueño.`);
+                }
+            }
+
+            // Método para simular el paso del tiempo y el cambio de estadísticas
+            // 'this' se refiere a la instancia de Pet que llama a este método
+            updateStatsOverTime() {
+                this.hunger = Math.min(100, this.hunger + 5);     // El hambre aumenta
+                this.happiness = Math.max(0, this.happiness - 3); // La felicidad disminuye
+                this.energy = Math.max(0, this.energy - 2);       // La energía disminuye
+
+                // Mensajes de advertencia si las estadísticas son críticas
+                if (this.hunger >= 90) {
+                    showMessage(`${this.name} tiene MUCHA hambre!`);
+                }
+                if (this.happiness <= 20) {
+                    showMessage(`${this.name} está muy TRISTE!`);
+                }
+                if (this.energy <= 10) {
+                    showMessage(`${this.name} está muy AGOTADO!`);
+                }
+            }
+        }
+
+        // --- Inicialización de la aplicación ---
+
+        // Crear una instancia de nuestra mascota
+        const myPet = new Pet("Buddy"); // Creamos un objeto 'myPet' de la clase 'Pet'
+
+        // Obtener referencias a los elementos del DOM
+        const petNameElement = document.getElementById('pet-name');
+        const petEmojiElement = document.getElementById('pet-emoji');
+        const petHungerElement = document.getElementById('pet-hunger');
+        const petHappinessElement = document.getElementById('pet-happiness');
+        const petEnergyElement = document.getElementById('pet-energy');
+
+        const feedBtn = document.getElementById('feed-btn');
+        const playBtn = document.getElementById('play-btn');
+        const sleepBtn = document.getElementById('sleep-btn');
+
+        // Función para actualizar la interfaz de usuario con las estadísticas de la mascota
+        function updateUI() {
+            petNameElement.textContent = myPet.name;
+            petEmojiElement.textContent = myPet.emoji;
+            petHungerElement.textContent = myPet.hunger;
+            petHappinessElement.textContent = myPet.happiness;
+            petEnergyElement.textContent = myPet.energy;
+        }
+
+        // Asignar manejadores de eventos a los botones
+        // Usamos funciones flecha para asegurar que 'this' dentro de los métodos
+        // 'feed', 'play', 'sleep' se refiera a 'myPet' y no al botón.
+        // Aunque en este caso directo (myPet.feed()), 'this' ya sería correcto,
+        // es una buena práctica para callbacks.
+        feedBtn.addEventListener('click', () => {
+            myPet.feed();
+            updateUI();
+        });
+
+        playBtn.addEventListener('click', () => {
+            myPet.play();
+            updateUI();
+        });
+
+        sleepBtn.addEventListener('click', () => {
+            myPet.sleep();
+            updateUI();
+        });
+
+        // Simular el paso del tiempo: Las estadísticas de la mascota cambian cada 2 segundos
+        // Importante: Usamos una función flecha para el callback de setInterval
+        // para que 'this' dentro de 'myPet.updateStatsOverTime()' se refiera a 'myPet'
+        // y no al objeto global (window en el navegador).
+        setInterval(() => {
+            myPet.updateStatsOverTime(); // Llama al método del objeto myPet
+            updateUI(); // Actualiza la UI después de que las estadísticas cambien
+        }, 2000); // Cada 2000 milisegundos (2 segundos)
+
+        // Inicializar la UI al cargar la página
+        window.onload = updateUI;
+    </script>
+</body>
+</html>
