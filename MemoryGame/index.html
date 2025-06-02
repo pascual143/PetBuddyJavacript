@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Memoria</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos personalizados para el botón de mensaje */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+
+        /* Estilos para las cartas */
+        .card {
+            width: 100px; /* Ancho fijo para las cartas */
+            height: 100px; /* Alto fijo para las cartas */
+            perspective: 1000px; /* Para el efecto 3D de volteo */
+            cursor: pointer;
+            position: relative;
+            border-radius: 0.75rem; /* rounded-lg */
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.6s; /* Transición para el volteo */
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .card.flipped .card-inner {
+            transform: rotateY(180deg); /* Voltear la carta */
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden; /* Ocultar la cara trasera cuando no está volteada */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem; /* Tamaño del emoji */
+            font-weight: bold;
+            border-radius: 0.75rem; /* rounded-lg */
+        }
+
+        .card-front {
+            background-color: #60a5fa; /* blue-400 */
+            color: white;
+            transform: rotateY(180deg); /* La cara frontal está volteada por defecto */
+        }
+
+        .card-back {
+            background-color: #a78bfa; /* purple-400 */
+            color: white;
+        }
+
+        .card.matched .card-inner {
+            opacity: 0.5; /* Cartas emparejadas se ven un poco transparentes */
+            pointer-events: none; /* No se pueden hacer clic una vez emparejadas */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-purple-200 to-pink-300 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Juego de Memoria</h1>
+
+        <div class="flex justify-between items-center mb-6 text-lg font-semibold text-gray-700">
+            <p>Pares encontrados: <span id="matched-pairs" class="text-green-600">0</span></p>
+            <p>Intentos: <span id="attempts-count" class="text-blue-600">0</span></p>
+        </div>
+
+        <!-- Contenedor de las cartas -->
+        <div id="game-board" class="grid grid-cols-4 gap-4 justify-items-center mb-6">
+            <!-- Cards will be inserted here by JavaScript -->
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+            <button id="reset-game-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Reiniciar Juego
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Box for alerts -->
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Función para mostrar un mensaje personalizado (reemplaza alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageBox.style.display = 'block';
+            messageText.textContent = message;
+        }
+
+        // Event listener para cerrar el mensaje
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Clase MemoryGame: Encapsula la lógica del juego de memoria
+        class MemoryGame {
+            // Constructor: Inicializa el estado del juego y las referencias a los elementos del DOM
+            // 'this' aquí se refiere a la nueva instancia de MemoryGame que se está creando
+            constructor(gameBoardId) {
+                this.gameBoard = document.getElementById(gameBoardId);
+                this.cards = [];             // Array para almacenar los datos de las cartas
+                this.flippedCards = [];      // Array para almacenar las cartas actualmente volteadas (máximo 2)
+                this.matchedPairs = 0;       // Contador de pares encontrados
+                this.attempts = 0;           // Contador de intentos (pares de volteos)
+                this.canFlip = true;         // Bandera para controlar si se pueden voltear cartas
+
+                // Emojis para las cartas (deben ser pares)
+                this.cardEmojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼']; // 8 emojis = 16 cartas
+
+                // Referencias a los elementos del DOM para la UI
+                this.matchedPairsDisplay = document.getElementById('matched-pairs');
+                this.attemptsCountDisplay = document.getElementById('attempts-count');
+                this.resetGameBtn = document.getElementById('reset-game-btn');
+
+                // Adjuntar los escuchadores de eventos
+                this.addEventListeners();
+                // Iniciar un nuevo juego al cargar la página
+                this.startGame();
+            }
+
+            // Método para adjuntar los escuchadores de eventos a los botones
+            // 'this' se refiere a la instancia de MemoryGame
+            addEventListeners() {
+                // Usamos una función flecha para el callback para preservar el contexto de 'this'
+                this.resetGameBtn.addEventListener('click', () => this.startGame());
+            }
+
+            // Método para iniciar o reiniciar el juego
+            // 'this' se refiere a la instancia de MemoryGame
+            startGame() {
+                this.cards = [];
+                this.flippedCards = [];
+                this.matchedPairs = 0;
+                this.attempts = 0;
+                this.canFlip = true;
+
+                this.generateCards(); // Generar las cartas HTML
+                this.shuffleCards();  // Mezclar las cartas
+                this.renderCards();   // Renderizar las cartas en el DOM
+                this.updateUI();      // Actualizar la UI
+                showMessage("¡Encuentra los pares! Haz clic en dos cartas para voltearlas.");
+            }
+
+            // Método para generar los datos de las cartas (pares de emojis)
+            // 'this' se refiere a la instancia de MemoryGame
+            generateCards() {
+                let idCounter = 0;
+                this.cardEmojis.forEach(emoji => {
+                    // Cada emoji se añade dos veces para formar un par
+                    this.cards.push({ id: idCounter++, value: emoji, isFlipped: false, isMatched: false, element: null });
+                    this.cards.push({ id: idCounter++, value: emoji, isFlipped: false, isMatched: false, element: null });
+                });
+            }
+
+            // Método para mezclar las cartas usando el algoritmo Fisher-Yates
+            // 'this' se refiere a la instancia de MemoryGame
+            shuffleCards() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]]; // Intercambiar elementos
+                }
+            }
+
+            // Método para renderizar las cartas en el DOM
+            // 'this' se refiere a la instancia de MemoryGame
+            renderCards() {
+                this.gameBoard.innerHTML = ''; // Limpiar el tablero actual
+
+                this.cards.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.classList.add('card');
+                    cardElement.dataset.id = card.id; // Almacenar el ID de la carta en el DOM
+
+                    const cardInner = document.createElement('div');
+                    cardInner.classList.add('card-inner');
+
+                    const cardFront = document.createElement('div');
+                    cardFront.classList.add('card-face', 'card-front');
+                    cardFront.textContent = card.value; // El emoji es la cara frontal
+
+                    const cardBack = document.createElement('div');
+                    cardBack.classList.add('card-face', 'card-back');
+                    cardBack.textContent = '?'; // La cara trasera es un signo de interrogación
+
+                    cardInner.appendChild(cardFront);
+                    cardInner.appendChild(cardBack);
+                    cardElement.appendChild(cardInner);
+
+                    // Almacenar la referencia al elemento DOM en el objeto de la carta
+                    card.element = cardElement;
+
+                    // Adjuntar el escuchador de clic a cada carta
+                    // Usamos una función flecha para asegurar que 'this' se refiere a la instancia de MemoryGame
+                    cardElement.addEventListener('click', () => this.handleCardClick(card));
+                    this.gameBoard.appendChild(cardElement);
+                });
+            }
+
+            // Método para manejar el clic en una carta
+            // 'this' se refiere a la instancia de MemoryGame
+            handleCardClick(clickedCard) {
+                // No permitir voltear si el juego está en pausa (esperando a que se volteen las cartas)
+                // o si la carta ya está volteada o emparejada
+                if (!this.canFlip || clickedCard.isFlipped || clickedCard.isMatched) {
+                    return;
+                }
+
+                // Voltear la carta
+                clickedCard.isFlipped = true;
+                clickedCard.element.classList.add('flipped');
+                this.flippedCards.push(clickedCard);
+
+                // Si se han volteado dos cartas, verificar si hay un emparejamiento
+                if (this.flippedCards.length === 2) {
+                    this.canFlip = false; // Bloquear más volteos temporalmente
+                    this.attempts++;      // Incrementar el contador de intentos
+                    this.updateUI();      // Actualizar la UI
+
+                    setTimeout(() => {
+                        this.checkForMatch();
+                    }, 1000); // Esperar 1 segundo antes de verificar
+                }
+            }
+
+            // Método para verificar si las dos cartas volteadas coinciden
+            // 'this' se refiere a la instancia de MemoryGame
+            checkForMatch() {
+                const [card1, card2] = this.flippedCards;
+
+                if (card1.value === card2.value) {
+                    // ¡Coinciden!
+                    card1.isMatched = true;
+                    card2.isMatched = true;
+                    card1.element.classList.add('matched');
+                    card2.element.classList.add('matched');
+                    this.matchedPairs++;
+                    showMessage(`¡Par encontrado! ${card1.value}`);
+                } else {
+                    // No coinciden, voltear de nuevo
+                    card1.isFlipped = false;
+                    card2.isFlipped = false;
+                    card1.element.classList.remove('flipped');
+                    card2.element.classList.remove('flipped');
+                    showMessage("No coinciden. ¡Inténtalo de nuevo!");
+                }
+
+                this.flippedCards = []; // Limpiar las cartas volteadas
+                this.canFlip = true;    // Permitir voltear más cartas
+                this.updateUI();        // Actualizar la UI
+
+                // Verificar si el juego ha terminado
+                if (this.matchedPairs === this.cardEmojis.length) {
+                    this.endGame();
+                }
+            }
+
+            // Método para actualizar la interfaz de usuario con el estado actual del juego
+            // 'this' se refiere a la instancia de MemoryGame
+            updateUI() {
+                this.matchedPairsDisplay.textContent = this.matchedPairs;
+                this.attemptsCountDisplay.textContent = this.attempts;
+            }
+
+            // Método para finalizar el juego
+            // 'this' se refiere a la instancia de MemoryGame
+            endGame() {
+                showMessage(`¡Felicidades! Has encontrado todos los ${this.matchedPairs} pares en ${this.attempts} intentos.`);
+                this.canFlip = false; // Asegurarse de que no se puedan voltear más cartas
+            }
+        }
+
+        // --- Inicialización de la aplicación ---
+        // Crear una instancia de nuestro juego de memoria cuando la ventana se cargue
+        window.onload = () => {
+            const myMemoryGame = new MemoryGame('game-board');
+            // El constructor ya llama a startGame() para inicializar el juego
+        };
+    </script>
+</body>
+</html>
