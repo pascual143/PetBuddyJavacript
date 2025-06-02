@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Propina</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilos personalizados para el botón de mensaje */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a5568; /* gray-700 */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            z-index: 1000;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            max-width: 90%;
+            width: 300px;
+        }
+        .message-box button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #63b3ed; /* blue-400 */
+            color: white;
+            border-radius: 0.5rem; /* rounded-md */
+            transition: background-color 0.2s;
+        }
+        .message-box button:hover {
+            background-color: #4299e1; /* blue-500 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-teal-200 to-green-300 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center transform hover:scale-105 transition-transform duration-300">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6">Calculadora de Propina</h1>
+
+        <div class="mb-6 text-left space-y-4">
+            <div>
+                <label for="bill-amount" class="block text-gray-700 text-lg font-semibold mb-2">Monto de la Cuenta (€):</label>
+                <input type="number" id="bill-amount" placeholder="Ej: 50.00" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400" min="0" step="0.01">
+            </div>
+            <div>
+                <label for="tip-percentage" class="block text-gray-700 text-lg font-semibold mb-2">Porcentaje de Propina (%):</label>
+                <input type="number" id="tip-percentage" placeholder="Ej: 15" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400" min="0" max="100" step="1">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <button id="calculate-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Calcular
+            </button>
+            <button id="reset-btn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+                Reiniciar
+            </button>
+        </div>
+
+        <div class="bg-gray-100 p-6 rounded-lg shadow-inner text-left">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">Resultados:</h2>
+            <p class="text-gray-600 text-lg mb-2">Propina: <span id="tip-amount" class="font-semibold text-teal-700">€0.00</span></p>
+            <p class="text-gray-800 text-xl font-bold">Total a Pagar: <span id="total-amount" class="font-extrabold text-teal-800">€0.00</span></p>
+        </div>
+    </div>
+
+    <!-- Message Box for alerts -->
+    <div id="message-box" class="message-box">
+        <p id="message-text"></p>
+        <button id="message-close-btn">Cerrar</button>
+    </div>
+
+    <script>
+        // Función para mostrar un mensaje personalizado (reemplaza alert())
+        function showMessage(message) {
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+
+        // Event listener para cerrar el mensaje
+        document.getElementById('message-close-btn').addEventListener('click', () => {
+            document.getElementById('message-box').style.display = 'none';
+        });
+
+        // Clase Calculator: Encapsula la lógica de la calculadora de propinas
+        class TipCalculator {
+            // Constructor: Inicializa las propiedades de la calculadora
+            constructor() {
+                this.billAmount = 0;
+                this.tipPercentage = 0;
+                this.tipAmount = 0;
+                this.totalAmount = 0;
+
+                // Referencias a los elementos del DOM
+                this.billInput = document.getElementById('bill-amount');
+                this.tipInput = document.getElementById('tip-percentage');
+                this.tipResult = document.getElementById('tip-amount');
+                this.totalResult = document.getElementById('total-amount');
+                this.calculateBtn = document.getElementById('calculate-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+
+                // Asignar los event listeners
+                this.addEventListeners();
+            }
+
+            // Método para añadir los escuchadores de eventos
+            // 'this' aquí se refiere a la instancia de TipCalculator
+            addEventListeners() {
+                // Usamos una función flecha para que 'this' dentro del callback
+                // se refiera a la instancia de TipCalculator y no al botón
+                this.calculateBtn.addEventListener('click', () => this.calculate());
+                this.resetBtn.addEventListener('click', () => this.reset());
+            }
+
+            // Método para obtener los valores de los inputs
+            // 'this' se refiere a la instancia de TipCalculator
+            getInputs() {
+                this.billAmount = parseFloat(this.billInput.value) || 0;
+                this.tipPercentage = parseFloat(this.tipInput.value) || 0;
+
+                if (isNaN(this.billAmount) || this.billAmount < 0) {
+                    showMessage("Por favor, introduce un monto de cuenta válido.");
+                    this.billInput.value = '';
+                    this.billAmount = 0;
+                    return false;
+                }
+                if (isNaN(this.tipPercentage) || this.tipPercentage < 0 || this.tipPercentage > 100) {
+                    showMessage("Por favor, introduce un porcentaje de propina válido (0-100).");
+                    this.tipInput.value = '';
+                    this.tipPercentage = 0;
+                    return false;
+                }
+                return true;
+            }
+
+            // Método para calcular la propina y el total
+            // 'this' se refiere a la instancia de TipCalculator
+            calculate() {
+                if (!this.getInputs()) {
+                    this.updateUI(); // Limpia la UI si hay errores
+                    return;
+                }
+
+                this.tipAmount = (this.billAmount * this.tipPercentage) / 100;
+                this.totalAmount = this.billAmount + this.tipAmount;
+
+                this.updateUI();
+            }
+
+            // Método para actualizar la interfaz de usuario con los resultados
+            // 'this' se refiere a la instancia de TipCalculator
+            updateUI() {
+                this.tipResult.textContent = `€${this.tipAmount.toFixed(2)}`;
+                this.totalResult.textContent = `€${this.totalAmount.toFixed(2)}`;
+            }
+
+            // Método para reiniciar la calculadora
+            // 'this' se refiere a la instancia de TipCalculator
+            reset() {
+                this.billInput.value = '';
+                this.tipInput.value = '';
+                this.billAmount = 0;
+                this.tipPercentage = 0;
+                this.tipAmount = 0;
+                this.totalAmount = 0;
+                this.updateUI();
+                showMessage("Calculadora reiniciada.");
+            }
+        }
+
+        // --- Inicialización de la aplicación ---
+        // Crear una instancia de nuestra calculadora
+        window.onload = () => {
+            const myTipCalculator = new TipCalculator();
+            myTipCalculator.updateUI(); // Asegura que la UI se inicialice con 0.00
+        };
+    </script>
+</body>
+</html>
